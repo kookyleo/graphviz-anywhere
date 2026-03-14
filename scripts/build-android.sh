@@ -93,7 +93,7 @@ build_android_abi() {
         -DANDROID_NATIVE_API_LEVEL="${ANDROID_API}" \
         -DANDROID_STL=c++_shared \
         "${GV_CMAKE_COMMON_ARGS[@]}" \
-        "-DCMAKE_C_FLAGS=-O2 -fPIC" \
+        "-DCMAKE_C_FLAGS=-O2 -fPIC -I${expat_install}/include" \
         -DEXPAT_INCLUDE_DIR="${expat_install}/include" \
         -DEXPAT_LIBRARY="${expat_install}/lib/libexpat.a" \
         -DCMAKE_INSTALL_PREFIX="${gv_install}"
