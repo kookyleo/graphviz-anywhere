@@ -128,6 +128,9 @@ REGEX_EOF
         sed -i.bak 's|#include <regex.h>|#include "regex_compat.h"|g' \
             "${output_dir}/lib/gvc/gvusershape.c" \
             "${output_dir}/lib/gvc/gvconfig.c"
+        # Fix malloc.h (not available on macOS/iOS — use stdlib.h instead)
+        find "${output_dir}" -name "*.c" -exec \
+            sed -i.bak 's|#include <malloc.h>|#include <stdlib.h>|g' {} +
         find "${output_dir}" -name "*.bak" -delete
     fi
 }
