@@ -47,7 +47,7 @@ build_single_arch() {
 
     cmake -S "${GV_PATCHED}" -B "${build_dir}/graphviz" \
         "${GV_CMAKE_COMMON_ARGS[@]}" \
-        "-DCMAKE_C_FLAGS=-O2 -fPIC" \
+        "-DCMAKE_C_FLAGS=-O2 -fPIC -Wno-incompatible-function-pointer-types" \
         -DCMAKE_OSX_ARCHITECTURES="${arch}" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15" \
         -DCMAKE_INSTALL_PREFIX="${gv_install}"

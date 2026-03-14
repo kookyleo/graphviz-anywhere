@@ -106,6 +106,28 @@ prepare_graphviz_source() {
                 -e 's/__declspec(dllexport)//g' \
                 -e 's/__declspec(dllimport)//g' \
                 {} +
+        # Create regex compatibility header (stubs for Windows MSVC, real regex.h elsewhere)
+        cat > "${output_dir}/lib/gvc/regex_compat.h" << 'REGEX_EOF'
+#ifndef REGEX_COMPAT_H
+#define REGEX_COMPAT_H
+#ifdef _WIN32
+/* Stub POSIX regex for Windows static builds */
+typedef struct { int unused; } regex_t;
+typedef int regoff_t;
+typedef struct { regoff_t rm_so; regoff_t rm_eo; } regmatch_t;
+#define REG_EXTENDED 1
+#define REG_NOSUB 2
+static inline int regcomp(regex_t *re, const char *pattern, int flags) { (void)re; (void)pattern; (void)flags; return -1; }
+static inline int regexec(const regex_t *re, const char *str, size_t nmatch, regmatch_t pmatch[], int flags) { (void)re; (void)str; (void)nmatch; (void)pmatch; (void)flags; return -1; }
+static inline void regfree(regex_t *re) { (void)re; }
+#else
+#include <regex.h>
+#endif
+#endif
+REGEX_EOF
+        sed -i.bak 's|#include <regex.h>|#include "regex_compat.h"|g' \
+            "${output_dir}/lib/gvc/gvusershape.c" \
+            "${output_dir}/lib/gvc/gvconfig.c"
         find "${output_dir}" -name "*.bak" -delete
     fi
 }

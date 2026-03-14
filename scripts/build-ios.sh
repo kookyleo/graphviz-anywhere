@@ -56,7 +56,7 @@ build_ios_arch() {
         -DCMAKE_OSX_SYSROOT="${sdk_path}" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="${IOS_MIN_VERSION}" \
         "${GV_CMAKE_COMMON_ARGS[@]}" \
-        "-DCMAKE_C_FLAGS=-arch ${arch} -isysroot ${sdk_path} -miphoneos-version-min=${IOS_MIN_VERSION} -O2 -fPIC" \
+        "-DCMAKE_C_FLAGS=-arch ${arch} -isysroot ${sdk_path} -miphoneos-version-min=${IOS_MIN_VERSION} -O2 -fPIC -Wno-incompatible-function-pointer-types" \
         -DCMAKE_INSTALL_PREFIX="${gv_install}"
 
     # Build only library targets (skip pango — not available on iOS)

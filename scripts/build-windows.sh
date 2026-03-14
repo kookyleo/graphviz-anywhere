@@ -45,7 +45,7 @@ cmake -S "${GV_PATCHED}" -B "${BUILD_DIR}/graphviz" \
     -G "Visual Studio 17 2022" -A x64 \
     "${GV_CMAKE_COMMON_ARGS[@]}" \
     -DEXPAT_INCLUDE_DIR="${EXPAT_INSTALL}/include" \
-    -DEXPAT_LIBRARY="${EXPAT_INSTALL}/lib/expat.lib" \
+    -DEXPAT_LIBRARY="$(find "${EXPAT_INSTALL}/lib" -name '*expat*.lib' | head -1)" \
     -DCMAKE_INSTALL_PREFIX="${BUILD_DIR}/graphviz-install"
 
 log_info "Building Graphviz library targets..."
@@ -57,7 +57,7 @@ install_graphviz_headers "${GV_PATCHED}" "${BUILD_DIR}/graphviz" "${GV_INSTALL}"
 
 # Copy expat lib so wrapper cmake can find it
 mkdir -p "${GV_INSTALL}/lib"
-cp "${EXPAT_INSTALL}/lib/expat.lib" "${GV_INSTALL}/lib/" 2>/dev/null || true
+cp "${EXPAT_INSTALL}/lib/"*expat* "${GV_INSTALL}/lib/" 2>/dev/null || true
 
 # Build wrapper DLL
 log_info "Building graphviz_api wrapper..."
