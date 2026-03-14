@@ -131,6 +131,9 @@ REGEX_EOF
         # Fix malloc.h (not available on macOS/iOS — use stdlib.h instead)
         find "${output_dir}" -name "*.c" -exec \
             sed -i.bak 's|#include <malloc.h>|#include <stdlib.h>|g' {} +
+        # Stub out system() calls (unavailable on iOS)
+        sed -i.bak 's|return system(c);|return -1; /* system() unavailable on iOS */|g' \
+            "${output_dir}/lib/sparse/general.c"
         find "${output_dir}" -name "*.bak" -delete
     fi
 }
