@@ -83,13 +83,19 @@ prepare_graphviz_source() {
             log_error "Failed to copy Graphviz source"
             exit 1
         fi
-        # Patch: force SHARED→STATIC, remove LTDL references (ltdl is disabled)
+        # Patch: force SHARED→STATIC, fix cmake version, remove LTDL refs,
+        # remove Windows DLL export macros (we build static)
         # Use sed -i.bak for BSD/GNU sed compatibility
         find "${output_dir}" -name CMakeLists.txt -exec \
             sed -i.bak \
                 -e 's/add_library(\([^ ]*\) SHARED/add_library(\1 STATIC/g' \
+                -e 's/\${LTDL_INCLUDE_DIRS}//g' \
                 -e 's/\${LTDL_INCLUDE_DIR}//g' \
+                -e 's/-DEXPORT_[A-Z]*//g' \
                 {} +
+        # Update cmake_minimum_required to satisfy modern cmake (>=3.31)
+        sed -i.bak 's/cmake_minimum_required *(VERSION *2\.[0-9]*/cmake_minimum_required(VERSION 3.10/' \
+            "${output_dir}/CMakeLists.txt"
         find "${output_dir}" -name "*.bak" -delete
     fi
 }
