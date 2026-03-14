@@ -83,19 +83,29 @@ prepare_graphviz_source() {
             log_error "Failed to copy Graphviz source"
             exit 1
         fi
-        # Patch: force SHARED→STATIC, fix cmake version, remove LTDL refs,
-        # remove Windows DLL export macros (we build static)
+        # Patch CMakeLists: SHARED→STATIC, remove LTDL refs, remove DLL export macros
         # Use sed -i.bak for BSD/GNU sed compatibility
         find "${output_dir}" -name CMakeLists.txt -exec \
             sed -i.bak \
                 -e 's/add_library(\([^ ]*\) SHARED/add_library(\1 STATIC/g' \
                 -e 's/\${LTDL_INCLUDE_DIRS}//g' \
                 -e 's/\${LTDL_INCLUDE_DIR}//g' \
+                -e 's/\${LTDL_LIBRARIES}//g' \
+                -e 's/\${LTDL_LIBRARY}//g' \
                 -e 's/-DEXPORT_[A-Z]*//g' \
                 {} +
-        # Update cmake_minimum_required to satisfy modern cmake (>=3.31)
-        sed -i.bak 's/cmake_minimum_required *(VERSION *2\.[0-9]*/cmake_minimum_required(VERSION 3.10/' \
+        # Top-level CMakeLists: fix min version, remove cmd/tclpkg (we only build libs)
+        sed -i.bak \
+            -e 's/cmake_minimum_required *(VERSION *2\.[0-9]*/cmake_minimum_required(VERSION 3.10/' \
+            -e '/add_subdirectory(cmd)/d' \
+            -e '/add_subdirectory(tclpkg)/d' \
             "${output_dir}/CMakeLists.txt"
+        # Strip __declspec from headers for clean static linking on Windows
+        find "${output_dir}" -name "*.h" -exec \
+            sed -i.bak \
+                -e 's/__declspec(dllexport)//g' \
+                -e 's/__declspec(dllimport)//g' \
+                {} +
         find "${output_dir}" -name "*.bak" -delete
     fi
 }
