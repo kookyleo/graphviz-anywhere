@@ -83,7 +83,7 @@ prepare_graphviz_source() {
             log_error "Failed to copy Graphviz source"
             exit 1
         fi
-        # Patch CMakeLists: SHARED→STATIC, remove LTDL refs, remove DLL export macros
+        # Patch CMakeLists: SHARED→STATIC, remove LTDL/EXPAT/ZLIB refs, remove DLL export macros
         # Use sed -i.bak for BSD/GNU sed compatibility
         find "${output_dir}" -name CMakeLists.txt -exec \
             sed -i.bak \
@@ -92,6 +92,14 @@ prepare_graphviz_source() {
                 -e 's/\${LTDL_INCLUDE_DIR}//g' \
                 -e 's/\${LTDL_LIBRARIES}//g' \
                 -e 's/\${LTDL_LIBRARY}//g' \
+                -e 's/\${EXPAT_INCLUDE_DIRS}//g' \
+                -e 's/\${EXPAT_INCLUDE_DIR}//g' \
+                -e 's/\${EXPAT_LIBRARIES}//g' \
+                -e 's/\${EXPAT_LIBRARY}//g' \
+                -e 's/\${ZLIB_INCLUDE_DIRS}//g' \
+                -e 's/\${ZLIB_INCLUDE_DIR}//g' \
+                -e 's/\${ZLIB_LIBRARIES}//g' \
+                -e 's/\${ZLIB_LIBRARY}//g' \
                 -e 's/-DEXPORT_[A-Z]*//g' \
                 {} +
         # Top-level CMakeLists: fix min version, remove cmd/tclpkg (we only build libs)
