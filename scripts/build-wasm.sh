@@ -47,6 +47,7 @@ log_info "Configuring Graphviz for Wasm..."
 mkdir -p "${BUILD_DIR}/graphviz"
 
 # Emscripten cmake toolchain settings
+# Explicitly set EXPAT and ZLIB to prevent linking errors
 if ! emcmake cmake -S "${GV_PATCHED}" -B "${BUILD_DIR}/graphviz" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -61,7 +62,11 @@ if ! emcmake cmake -S "${GV_PATCHED}" -B "${BUILD_DIR}/graphviz" \
     -Dwith_sfdp=ON \
     -Dwith_expat=OFF \
     -Dwith_zlib=OFF \
-    -Dwith_pangocairo=OFF; then
+    -Dwith_pangocairo=OFF \
+    -DEXPAT_LIBRARY="" \
+    -DEXPAT_INCLUDE_DIR="" \
+    -DZLIB_LIBRARY="" \
+    -DZLIB_INCLUDE_DIR=""; then
     log_warn "CMake configuration failed, skipping Wasm build"
     # Create minimal output directory for CI compatibility
     mkdir -p "${INSTALL_DIR}"
