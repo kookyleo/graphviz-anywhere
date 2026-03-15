@@ -114,7 +114,7 @@ mkdir -p "${INSTALL_DIR}"
 emcc -O2 \
     -s WASM=1 \
     -s EXPORTED_FUNCTIONS='["_gv_context_new","_gv_context_free","_gv_render","_gv_render_formats","_gv_free_render_data","_gv_strerror","_gv_version","_gv_get_engines","_gv_get_formats"]' \
-    -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","UTF8ToString","lengthBytesUTF8","allocate","ALLOC_NORMAL","malloc","free"]' \
+    -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","UTF8ToString","lengthBytesUTF8","allocate","ALLOC_NORMAL"]' \
     -s ALLOW_MEMORY_GROWTH=1 \
     -s MAXIMUM_MEMORY=2GB \
     -s MODULARIZE=1 \
