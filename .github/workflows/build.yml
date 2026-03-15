@@ -233,9 +233,13 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          sparse-checkout: ''
+
+      - name: Debug workspace
+        run: |
+          echo "Current dir: $(pwd)"
+          ls -la
+          [ -f package.json ] && echo "✓ package.json found" || echo "✗ package.json NOT found"
+
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
