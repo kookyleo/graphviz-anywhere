@@ -1,0 +1,14 @@
+[package]
+name = "graphviz-anywhere-core"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.64"
+description = "Core FFI bindings for graphviz-anywhere C library"
+license = "Apache-2.0"
+authors = ["kookyleo <kookyleo@gmail.com>"]
+repository = "https://github.com/nicekook/graphviz-anywhere"
+links = "graphviz_api"
+
+[dependencies]
+
+[build-dependencies]

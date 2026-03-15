@@ -10,7 +10,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 GRAPHVIZ_SRC="${PROJECT_ROOT}/graphviz"
-WRAPPER_SRC="${PROJECT_ROOT}/src"
+WRAPPER_SRC="${PROJECT_ROOT}/capi"
 
 # BUILD_DIR and INSTALL_DIR are set by each platform script
 # They can be overridden via environment variables

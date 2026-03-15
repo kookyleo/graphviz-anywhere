@@ -20,13 +20,18 @@
     "android",
     "macos",
     "windows",
+    "scripts",
     "graphviz-anywhere-react-native.podspec",
     "!**/__tests__"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "typescript": "tsc --noEmit",
     "build": "bob build",
     "prepare": "bob build",
+    "postinstall": "node scripts/download-native.js",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "fmt": "prettier --write src",
     "test": "jest"
