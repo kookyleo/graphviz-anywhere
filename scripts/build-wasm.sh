@@ -48,11 +48,12 @@ mkdir -p "${BUILD_DIR}/graphviz"
 
 # Emscripten cmake toolchain settings
 # Explicitly set EXPAT and ZLIB to prevent linking errors
+# Disable incompatible-function-pointer-types warning that fails on modern clang
 if ! emcmake cmake -S "${GV_PATCHED}" -B "${BUILD_DIR}/graphviz" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     -DBUILD_SHARED_LIBS=OFF \
-    -DCMAKE_C_FLAGS="-O2" \
+    -DCMAKE_C_FLAGS="-O2 -Wno-incompatible-function-pointer-types" \
     -DCMAKE_CXX_FLAGS="-O2" \
     -DCMAKE_INSTALL_PREFIX="${BUILD_DIR}/graphviz-install" \
     -Denable_ltdl=OFF \
