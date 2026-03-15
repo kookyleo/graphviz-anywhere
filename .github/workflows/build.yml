@@ -224,9 +224,10 @@ jobs:
           path: packages/core-js/dist/
 
   publish-npm-cargo:
-    if: startsWith(github.ref, 'refs/tags/v') && always()
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: [build-wasm]
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v4
