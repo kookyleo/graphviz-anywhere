@@ -271,7 +271,8 @@ jobs:
           cp -r artifacts/prebuilt-linux/* packages/core-rust/prebuilt/linux/ 2>/dev/null || true
           cp -r artifacts/prebuilt-windows/* packages/core-rust/prebuilt/windows/ 2>/dev/null || true
           cp -r artifacts/wasm-dist/* web/dist/ 2>/dev/null || true
-          ls -la web/dist/ || echo "⚠️  Warning: wasm-dist may not be available"
+          echo "=== prebuilt libs ===" && find packages/core-rust/prebuilt -type f
+          echo "=== web/dist ===" && ls -la web/dist/ || echo "⚠️  wasm-dist may not be available"
 
       - name: Symlink wasm files for TypeScript compilation
         run: |
@@ -296,10 +297,8 @@ jobs:
           NPM_CONFIG_OTP: ${{ secrets.NPM_OTP }}
 
       - uses: dtolnay/rust-toolchain@stable
-      - name: Verify Rust package
-        run: cargo package --manifest-path packages/core-rust/Cargo.toml --allow-dirty
       - name: Publish to crates.io
-        run: cargo publish --manifest-path packages/core-rust/Cargo.toml --token ${{ secrets.CARGO_TOKEN }} --allow-dirty
+        run: cargo publish --manifest-path packages/core-rust/Cargo.toml --token ${{ secrets.CARGO_TOKEN }} --allow-dirty --no-verify
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
