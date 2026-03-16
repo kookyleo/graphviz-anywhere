@@ -288,11 +288,12 @@ jobs:
 
       - name: Publish to npm
         run: |
-          npm publish --workspace packages/core-js --access public
-          npm publish --workspace web --access public
-          npm publish --workspace react-native --access public
+          npm publish --workspace packages/core-js --access public --auth-type=legacy
+          npm publish --workspace web --access public --auth-type=legacy
+          npm publish --workspace react-native --access public --auth-type=legacy
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_OTP: ${{ secrets.NPM_OTP }}
 
       - uses: dtolnay/rust-toolchain@stable
       - name: Verify Rust package
