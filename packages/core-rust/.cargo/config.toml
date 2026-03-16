@@ -1,0 +1,3 @@
+[build]
+# Link search path for prebuilt libraries
+rustflags = ["-l", "native=prebuilt"]

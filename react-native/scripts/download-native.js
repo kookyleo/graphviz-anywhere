@@ -24,6 +24,10 @@ const downloads = [
     dest: path.join(__dirname, '../ios/Frameworks'),
   },
   {
+    name: 'graphviz-native-macos-universal.tar.gz',
+    dest: path.join(__dirname, '../macos/Frameworks'),
+  },
+  {
     name: 'graphviz-native-android-arm64-v8a.tar.gz',
     dest: path.join(__dirname, '../android/libs/arm64-v8a'),
   },

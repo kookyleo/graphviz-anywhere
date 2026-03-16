@@ -171,6 +171,12 @@ jobs:
           chmod +x scripts/*.sh
           ./scripts/build-windows.sh
 
+      - name: Copy to packages/core-rust/prebuilt
+        shell: bash
+        run: |
+          mkdir -p packages/core-rust/prebuilt/windows
+          cp output/windows-x86_64/lib/libgraphviz_api.a packages/core-rust/prebuilt/windows/ || true
+
       - name: Package
         shell: bash
         run: |
@@ -181,6 +187,11 @@ jobs:
         with:
           name: windows-x86_64
           path: graphviz-native-windows-x86_64.zip
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: prebuilt-windows
+          path: packages/core-rust/prebuilt/windows/
 
   build-wasm:
     runs-on: ubuntu-latest
@@ -229,7 +240,7 @@ jobs:
 
   publish-npm-cargo:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-wasm]
+    needs: [build-linux, build-macos, build-windows, build-wasm]
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -258,6 +269,7 @@ jobs:
           # 尽力复制，但不要因为缺失文件而失败
           cp -r artifacts/prebuilt-macos/* packages/core-rust/prebuilt/macos/ 2>/dev/null || true
           cp -r artifacts/prebuilt-linux/* packages/core-rust/prebuilt/linux/ 2>/dev/null || true
+          cp -r artifacts/prebuilt-windows/* packages/core-rust/prebuilt/windows/ 2>/dev/null || true
           cp -r artifacts/wasm-dist/* packages/core-js/dist/ 2>/dev/null || true
           ls -la packages/core-js/dist/ || echo "⚠️  Warning: wasm-dist may not be available"
 
@@ -277,14 +289,16 @@ jobs:
       - name: Publish to npm
         run: |
           npm publish --workspace packages/core-js --access public
-          npm publish --workspace packages/js/web --access public
-          npm publish --workspace packages/react-native --access public
+          npm publish --workspace web --access public
+          npm publish --workspace react-native --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - uses: dtolnay/rust-toolchain@stable
+      - name: Verify Rust package
+        run: cargo package --manifest-path packages/core-rust/Cargo.toml --allow-dirty
       - name: Publish to crates.io
-        run: cargo publish --manifest-path packages/core-rust/Cargo.toml --token ${{ secrets.CARGO_TOKEN }}
+        run: cargo publish --manifest-path packages/core-rust/Cargo.toml --token ${{ secrets.CARGO_TOKEN }} --allow-dirty
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
