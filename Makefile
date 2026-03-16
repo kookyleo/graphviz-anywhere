@@ -3,38 +3,38 @@
 # Rust checks
 .PHONY: rust-test rust-clippy rust-fmt
 rust-test:
-	cd rust/graphviz && cargo test --lib && cd ../..
+	cargo test -p graphviz-anywhere --lib
 
 rust-clippy:
-	cd rust/graphviz && cargo clippy --lib && cd ../..
+	cargo clippy -p graphviz-anywhere --lib
 
 rust-fmt:
-	cd rust/graphviz && cargo fmt --check && cd ../..
+	cargo fmt --check
 
 # Web checks
 .PHONY: web-test web-lint web-fmt web-typecheck
 web-test:
-	cd web && npm test -- --run && cd ..
+	cd packages/web && npm test -- --run && cd ../..
 
 web-lint:
-	cd web && npm run lint && cd ..
+	cd packages/web && npm run lint && cd ../..
 
 web-fmt:
-	cd web && npm run fmt && cd ..
+	cd packages/web && npm run fmt && cd ../..
 
 web-typecheck:
-	cd web && npm run typecheck && cd ..
+	cd packages/web && npm run typecheck && cd ../..
 
 # React Native checks
 .PHONY: rn-typecheck rn-lint rn-fmt
 rn-typecheck:
-	cd react-native && npm run typescript && cd ..
+	cd packages/react-native && npm run typescript && cd ../..
 
 rn-lint:
-	cd react-native && npm run lint && cd ..
+	cd packages/react-native && npm run lint && cd ../..
 
 rn-fmt:
-	cd react-native && npm run fmt && cd ..
+	cd packages/react-native && npm run fmt && cd ../..
 
 # Combined targets
 test: rust-test web-test
