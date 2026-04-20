@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 #
-# Build Graphviz WebAssembly module
+# Build Graphviz WebAssembly module with Embind bindings.
 #
-# Compiles Graphviz C library to WebAssembly using Emscripten.
-# Produces a self-contained .wasm module with JavaScript glue code.
+# Architecture: compiles Graphviz 14.x libs as static archives, then links
+# our `packages/web/src-cpp/main.cpp` wrapper (CGraphviz class) with
+# `-lembind` so user-facing calls go through typed Embind dispatch
+# instead of the wasm function-pointer table. See hpcc-js-wasm for the
+# reference approach.
 #
 # Usage:
 #   ./scripts/build-wasm.sh
 #
 # Environment variables:
 #   BUILD_DIR   - Build directory (default: build/wasm)
-#   INSTALL_DIR - Install prefix (default: output/wasm)
+#   INSTALL_DIR - Install prefix (default: packages/web/dist)
 #
 
 set -euo pipefail
@@ -20,9 +23,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
 
 BUILD_DIR="${BUILD_DIR:-${PROJECT_ROOT}/build/wasm}"
-INSTALL_DIR="${INSTALL_DIR:-${PROJECT_ROOT}/output/wasm}"
+# Default to packages/web/dist so the published package contains the wasm.
+INSTALL_DIR="${INSTALL_DIR:-${PROJECT_ROOT}/packages/web/dist}"
+WEB_SRC_CPP="${PROJECT_ROOT}/packages/web/src-cpp"
 
-log_info "Building Graphviz for WebAssembly"
+log_info "Building Graphviz for WebAssembly (Embind)"
 log_info "Build directory: ${BUILD_DIR}"
 log_info "Install directory: ${INSTALL_DIR}"
 
@@ -33,29 +38,35 @@ if ! command -v emcc &>/dev/null; then
 fi
 
 log_info "Using Emscripten: $(emcc --version | head -1)"
-
-# Verify cmake is available
 check_command "cmake"
 
-# Step 1: Prepare patched source
+# Step 1: Prepare patched source (SHARED→STATIC, strip declspecs, etc.).
 mkdir -p "${BUILD_DIR}"
 GV_PATCHED="${BUILD_DIR}/graphviz-src"
 prepare_graphviz_source "${GV_PATCHED}"
 
-# Step 2: Configure Graphviz with Emscripten
+# Step 2: Configure Graphviz with Emscripten.
 log_info "Configuring Graphviz for Wasm..."
 mkdir -p "${BUILD_DIR}/graphviz"
 
-# Emscripten cmake toolchain settings
-# Explicitly set EXPAT and ZLIB to prevent linking errors
-# Disable incompatible-function-pointer-types warning that fails on modern clang
+# -DGRAPHVIZ_CLI=OFF skips cmd/contrib builds that don't apply to wasm.
+# -Wno-incompatible-function-pointer-types is kept for defensive compat;
+# 14.x is mostly clean but the occasional stray cast still appears.
 if ! emcmake cmake -S "${GV_PATCHED}" -B "${BUILD_DIR}/graphviz" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     -DBUILD_SHARED_LIBS=OFF \
-    -DCMAKE_C_FLAGS="-O2 -Wno-incompatible-function-pointer-types" \
-    -DCMAKE_CXX_FLAGS="-O2" \
+    -DCMAKE_C_FLAGS="-O2 -fwasm-exceptions -Wno-incompatible-function-pointer-types" \
+    -DCMAKE_CXX_FLAGS="-O2 -fwasm-exceptions" \
     -DCMAKE_INSTALL_PREFIX="${BUILD_DIR}/graphviz-install" \
+    -DGRAPHVIZ_CLI=OFF \
+    -DENABLE_LTDL=OFF \
+    -DENABLE_TCL=OFF \
+    -DENABLE_SWIG=OFF \
+    -DENABLE_SHARP=OFF \
+    -DENABLE_D=OFF \
+    -DENABLE_GO=OFF \
+    -DENABLE_JAVASCRIPT=OFF \
     -Denable_ltdl=OFF \
     -Dwith_smyrna=OFF \
     -Dwith_digcola=ON \
@@ -68,21 +79,18 @@ if ! emcmake cmake -S "${GV_PATCHED}" -B "${BUILD_DIR}/graphviz" \
     -DEXPAT_INCLUDE_DIR="" \
     -DZLIB_LIBRARY="" \
     -DZLIB_INCLUDE_DIR=""; then
-    log_warn "CMake configuration failed, skipping Wasm build"
-    # Create minimal output directory for CI compatibility
-    mkdir -p "${INSTALL_DIR}"
-    exit 0
+    log_error "CMake configuration failed"
+    exit 1
 fi
 
 # Step 3: Build Graphviz targets
 log_info "Building Graphviz library targets..."
 GV_TARGETS=("${GV_LIB_TARGETS[@]}")
-JOBS=${JOBS:-$(nproc 2>/dev/null || echo 4)}
+JOBS=${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}
 if ! emmake cmake --build "${BUILD_DIR}/graphviz" --parallel "$JOBS" \
     --target "${GV_TARGETS[@]}"; then
-    log_warn "Build failed, skipping Wasm output"
-    mkdir -p "${INSTALL_DIR}"
-    exit 0
+    log_error "Graphviz static-lib build failed"
+    exit 1
 fi
 
 GV_INSTALL="${BUILD_DIR}/graphviz-install"
@@ -96,55 +104,97 @@ while IFS= read -r lib; do
 done < <(collect_static_libs "${BUILD_DIR}/graphviz" "${GV_INSTALL}" 2>/dev/null)
 log_info "Found ${#GV_STATIC_LIBS[@]} static libraries"
 
-# Step 5: Compile wrapper and link into Wasm module
-log_info "Compiling C wrapper..."
-mkdir -p "${BUILD_DIR}/obj"
-emcc -c -O2 \
-    -DPACKAGE_VERSION="\"${GRAPHVIZ_VERSION}\"" \
-    -I"${GV_INSTALL}/include" \
-    -I"${GV_INSTALL}/include/graphviz" \
-    -o "${BUILD_DIR}/obj/graphviz_api.o" \
-    "${WRAPPER_SRC}/graphviz_api.c"
-
-# Step 6: Link into single Wasm module
-log_info "Linking WebAssembly module..."
+# Step 5: Compile + link the C++ Embind wrapper into a single Wasm module.
+#
+# Flags mirror hpcc-js-wasm's root/package CMakeLists:
+#   -lembind              → Embind runtime (auto-generates JS bindings)
+#   -fwasm-exceptions     → native wasm EH, avoids the invoke trampoline
+#                           that historically blew up on K&R fpcasts
+#   -sMODULARIZE=1        → factory-function export (ES6 default)
+#   -sEXPORT_ES6=1
+#   -sEXPORT_NAME=...     → factory name; picked up by loader glue
+#   -sENVIRONMENT=web,webview,worker,node
+#   -sALLOW_MEMORY_GROWTH=1
+#   -sFILESYSTEM=0        → drop the emscripten FS shim we don't need
+#   -sSTRICT=1            → strict emscripten mode, drops legacy JS APIs
+#
+# Note: EXPORTED_FUNCTIONS / EXPORTED_RUNTIME_METHODS / cwrap-style exports
+# are deliberately omitted — Embind handles the surface area now.
+log_info "Linking WebAssembly module (Embind)..."
 mkdir -p "${INSTALL_DIR}"
 
-# Emscripten linking with proper exports and module setup
-# Use -O0 instead of -O2 to avoid complex optimizations that may cause issues
-emcc -O0 \
-    -s WASM=1 \
-    -s EXPORTED_FUNCTIONS='["_gv_context_new","_gv_context_free","_gv_render","_gv_render_formats","_gv_free_render_data","_gv_strerror","_gv_version","_gv_get_engines","_gv_get_formats"]' \
-    -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","UTF8ToString","lengthBytesUTF8","allocate","ALLOC_NORMAL"]' \
-    -s ALLOW_MEMORY_GROWTH=1 \
-    -s MAXIMUM_MEMORY=2GB \
-    -s MODULARIZE=1 \
-    -s EXPORT_NAME='VizModule' \
+EMBIND_CXX_FLAGS=(
+    -O2
+    -fwasm-exceptions
+    -DPACKAGE_VERSION="\"${GRAPHVIZ_VERSION}\""
+    -I"${GV_INSTALL}/include"
+    -I"${GV_INSTALL}/include/graphviz"
+    # Generated graphviz_version.h lives at the CMake build root
+    -I"${BUILD_DIR}/graphviz"
+    # Source-tree headers for gvc.h/gvplugin.h/cgraph.h etc. that aren't
+    # installed because we didn't run `cmake --install`.
+    -I"${GV_PATCHED}/lib/gvc"
+    -I"${GV_PATCHED}/lib/cgraph"
+    -I"${GV_PATCHED}/lib/cdt"
+    -I"${GV_PATCHED}/lib/pathplan"
+    -I"${GV_PATCHED}/lib/common"
+)
+
+EMBIND_LINK_FLAGS=(
+    -O2
+    -fwasm-exceptions
+    -lembind
+    --no-entry
+    -sWASM=1
+    -sMODULARIZE=1
+    -sEXPORT_ES6=1
+    -sEXPORT_NAME=VizModule
+    -sENVIRONMENT=web,webview,worker,node
+    -sALLOW_MEMORY_GROWTH=1
+    -sFILESYSTEM=0
+    -sSTRICT=1
+    -sINCOMING_MODULE_JS_API=['wasmBinary','locateFile']
+    -sEXPORTED_RUNTIME_METHODS=['UTF8ToString']
+)
+
+em++ "${EMBIND_CXX_FLAGS[@]}" \
+    -c "${WEB_SRC_CPP}/main.cpp" \
+    -o "${BUILD_DIR}/graphvizlib_main.o"
+
+em++ "${EMBIND_LINK_FLAGS[@]}" \
     -o "${INSTALL_DIR}/viz.js" \
-    "${BUILD_DIR}/obj/graphviz_api.o" \
-    "${GV_STATIC_LIBS[@]}" \
-    -lm
+    "${BUILD_DIR}/graphvizlib_main.o" \
+    "${GV_STATIC_LIBS[@]}"
 
-# The above produces viz.js and viz.wasm
-cp "${WRAPPER_SRC}/graphviz_api.h" "${INSTALL_DIR}/"
-
-# Step 7: Generate TypeScript declaration stub for easier TS integration
+# Step 6: Generate TypeScript declaration stub for the Embind module.
 cat > "${INSTALL_DIR}/viz.d.ts" << 'TS_EOF'
-export interface VizInstance {
-  ccall: (name: string, returnType: string, paramTypes: string[], params: any[]) => any;
-  cwrap: (name: string, returnType: string, paramTypes: string[]) => (...args: any[]) => any;
-  UTF8ToString: (ptr: number) => string;
-  allocate: (data: any, type: string, allocType: number) => number;
-  ALLOC_NORMAL: number;
-  _malloc: (size: number) => number;
-  _free: (ptr: number) => void;
+// Auto-generated ambient types for the Embind wasm module emitted by
+// scripts/build-wasm.sh. Shape matches emscripten MODULARIZE=1 output.
+export interface CGraphviz {
+  layout(dot: string, format: string, engine: string): string;
+  delete(): void;
 }
 
-declare const VizModule: () => Promise<VizInstance>;
+export interface CGraphvizConstructor {
+  new (): CGraphviz;
+  new (yInvert: number, nop: number): CGraphviz;
+  version(): string;
+  lastError(): string;
+}
+
+export interface VizModuleInstance {
+  CGraphviz: CGraphvizConstructor;
+}
+
+declare const VizModule: (config?: {
+  wasmBinary?: ArrayBuffer | Uint8Array;
+  locateFile?: (path: string, prefix: string) => string;
+}) => Promise<VizModuleInstance>;
+
 export default VizModule;
 TS_EOF
 
-# Step 8: Verify outputs
+# Step 7: Verify outputs
 log_info "Verifying outputs..."
 verify_output "${INSTALL_DIR}/viz.wasm" "WebAssembly module"
 verify_output "${INSTALL_DIR}/viz.js" "JavaScript glue code"
