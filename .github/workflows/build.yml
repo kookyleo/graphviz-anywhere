@@ -212,21 +212,17 @@ jobs:
           version: latest
 
       - name: Build Wasm
+        # scripts/build-wasm.sh now emits viz.{js,wasm,d.ts} directly
+        # into packages/web/dist/ (per the Embind rearch landed in
+        # rearch/hpcc-js-aligned). No more output/wasm/ intermediate.
         run: |
           chmod +x scripts/*.sh
           ./scripts/build-wasm.sh
 
-      - name: Copy to packages/web/dist
-        run: |
-          mkdir -p packages/web/dist
-          cp output/wasm/*.wasm packages/web/dist/ || true
-          cp output/wasm/*.js packages/web/dist/ || true
-          cp output/wasm/*.d.ts packages/web/dist/ || true
-
       - name: Package
         run: |
-          cd output/wasm
-          tar czf "${GITHUB_WORKSPACE}/graphviz-native-wasm.tar.gz" .
+          cd packages/web/dist
+          tar czf "${GITHUB_WORKSPACE}/graphviz-native-wasm.tar.gz" viz.js viz.wasm viz.d.ts
 
       - uses: actions/upload-artifact@v7
         with:
