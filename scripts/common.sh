@@ -144,10 +144,16 @@ prepare_graphviz_source() {
         # neutralize the UNIX `find_library(MATH_LIB m)` step which fails
         # under Emscripten (libm is built into musl and has no *.a on disk).
         # Replacing with a direct `-lm` that emcc knows how to resolve.
+        # Also force-disable the IPO auto-enable so
+        # `-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF` on the command line
+        # actually wins — Graphviz 14.x unconditionally sets IPO=ON for
+        # Release builds, which emits LLVM bitcode objects that
+        # xcodebuild -create-xcframework refuses on iOS.
         sed -i.bak \
             -e '/add_subdirectory(cmd)/d' \
             -e '/add_subdirectory(tclpkg)/d' \
             -e 's|find_library(MATH_LIB m)|set(MATH_LIB m CACHE STRING "math library")|' \
+            -e 's|set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)|set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)|' \
             "${output_dir}/CMakeLists.txt"
         # Strip __declspec from headers for clean static linking on Windows
         find "${output_dir}" -name "*.h" -exec \
