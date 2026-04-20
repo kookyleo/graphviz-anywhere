@@ -15,8 +15,8 @@ WRAPPER_SRC="${PROJECT_ROOT}/capi"
 # BUILD_DIR and INSTALL_DIR are set by each platform script
 # They can be overridden via environment variables
 
-# Graphviz version from submodule
-GRAPHVIZ_VERSION="2.44.0"
+# Graphviz version from submodule (keep in sync with `graphviz/` checkout)
+GRAPHVIZ_VERSION="14.1.5"
 
 log_info() {
     echo "[INFO] $*"
@@ -60,11 +60,13 @@ GV_CMAKE_COMMON_ARGS=(
     -Dwith_sfdp=ON
 )
 
-# List of CMake library targets needed for the unified build
+# List of CMake library targets needed for the unified build.
+# Adjusted for Graphviz 14.x layout: `ingraphs` is now folded into cgraph;
+# `util` and `vpsc` are first-class libs.
 GV_LIB_TARGETS=(
-    gvc cgraph cdt pathplan xdot common
+    gvc cgraph cdt pathplan xdot common util vpsc
     dotgen neatogen fdpgen sfdpgen circogen twopigen osage patchwork
-    pack label sparse ortho rbtree ingraphs
+    pack label sparse ortho rbtree
     gvplugin_dot_layout gvplugin_neato_layout gvplugin_core
 )
 
