@@ -87,7 +87,7 @@ GV_API gv_error_t gv_render(gv_context_t *ctx,
 
     /* Render to memory buffer */
     char *result = NULL;
-    unsigned int length = 0;
+    size_t length = 0;
     rc = gvRenderData(ctx->gvc, g, format, &result, &length);
     if (rc != 0) {
         gvFreeLayout(ctx->gvc, g);
@@ -96,7 +96,7 @@ GV_API gv_error_t gv_render(gv_context_t *ctx,
     }
 
     *out_data = result;
-    *out_length = (size_t)length;
+    *out_length = length;
 
     /* Cleanup graph and layout, but not the render data */
     gvFreeLayout(ctx->gvc, g);
@@ -257,7 +257,7 @@ GV_API gv_error_t gv_render_formats(gv_context_t *ctx,
 
                         /* Render to this format */
                         char *result = NULL;
-                        unsigned int result_len = 0;
+                        size_t result_len = 0;
                         int render_rc = gvRenderData(ctx->gvc, g, fmt_list[fmt_count],
                                                      &result, &result_len);
                         result_list[fmt_count] = (render_rc == 0) ? result : NULL;
