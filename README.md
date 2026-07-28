@@ -1,5 +1,18 @@
 # graphviz-anywhere
 
+> **This repository is no longer the development home for graphviz-anywhere.**
+>
+> The project has been merged into
+> [**Actrium/supramark**](https://github.com/Actrium/supramark) via `git subtree`
+> and now lives at
+> [`crates/graphviz-anywhere/`](https://github.com/Actrium/supramark/tree/main/crates/graphviz-anywhere).
+> Ongoing development, issues and native Release assets are handled there — the
+> Rust crate's `build.rs` already resolves prebuilt libraries from
+> `Actrium/supramark` releases by default.
+>
+> The history here remains available for reference, and the existing Releases
+> (up to `v0.2.1`) stay downloadable.
+
 Graphviz for native runtimes and the web.
 
 This repository now covers three delivery paths:
